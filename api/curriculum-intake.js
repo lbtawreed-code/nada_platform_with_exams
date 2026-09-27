@@ -8,18 +8,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = new URLSearchParams();
+    let body;
+    let headers = {};
 
-    for (const [key, value] of Object.entries(req.body || {})) {
-      body.append(key, value == null ? "" : String(value));
+    // Handle form-encoded (from index.html)
+    if (typeof req.body === "string") {
+      body = req.body;
+      headers["Content-Type"] = "application/x-www-form-urlencoded;charset=UTF-8";
+    } else {
+      // Convert object to form-encoded
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(req.body || {})) {
+        params.append(key, value == null ? "" : String(value));
+      }
+      body = params.toString();
+      headers["Content-Type"] = "application/x-www-form-urlencoded;charset=UTF-8";
     }
 
     const n8nResponse = await fetch(N8N_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-      },
-      body: body.toString()
+      headers,
+      body
     });
 
     const text = await n8nResponse.text();
