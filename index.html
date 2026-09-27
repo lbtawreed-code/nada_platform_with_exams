@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ندى - تطوير مناهج تدريب الشراء العام اللبناني عبر Webhooks إنتاجية." />
+  <title>ندى | تطوير مناهج تدريب الشراء العام</title>
+
+  <!-- Prototype only. For production, install Tailwind through npm/PostCSS or Tailwind CLI. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23071A2F'/%3E%3Ctext x='50' y='64' text-anchor='middle' font-size='54' font-family='Arial' fill='white'%3E%D8%AA%3C/text%3E%3C/svg%3E">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    /*
+      Recommended production mode:
+      - Keep USE_VERCEL_PROXY = true
+      - Create these Vercel API routes:
+        /api/curriculum-intake
+        /api/approve-curriculum
+        /api/module-intake
+
+      Direct n8n mode:
+      - Set USE_VERCEL_PROXY = false
+      - n8n/reverse proxy must return proper CORS headers
+    */
+    const USE_VERCEL_PROXY = true;
+
+    const N8N_BASE_URL = "https://n8n.lbtawreed.online";
+    const N8N_WEBHOOK_PREFIX = "webhook";
+
+    const DIRECT_N8N_ENDPOINTS = {
+      curriculumIntake: `${N8N_BASE_URL}/${N8N_WEBHOOK_PREFIX}/tawreed-curriculum-intake`,
+      approveCurriculum: `${N8N_BASE_URL}/${N8N_WEBHOOK_PREFIX}/approve-curriculum`,
+      moduleGenerator: `${N8N_BASE_URL}/${N8N_WEBHOOK_PREFIX}/tawreed-module-intake`,
+      examGenerator: `${N8N_BASE_URL}/${N8N_WEBHOOK_PREFIX}/tawreed-exam-intake`
+    };
+
+    const PROXY_ENDPOINTS = {
+      curriculumIntake: "/api/curriculum-intake",
+      approveCurriculum: "/api/approve-curriculum",
+      moduleGenerator: "/api/module-intake",
+      examGenerator: "/api/exam-intake"
+    };
+
+    const ENDPOINTS = USE_VERCEL_PROXY ? PROXY_ENDPOINTS : DIRECT_N8N_ENDPOINTS;
+
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            arabic: ["Cairo", "Tajawal", "system-ui", "sans-serif"]
+          },
+          colors: {
+            tawreed: {
+              navy: "#071A2F",
+              deep: "#0B2545",
+              cyan: "#00A7C8",
+              sky: "#E8F7FB",
+              gold: "#C9A227",
+              ink: "#102033"
+            }
+          },
+          boxShadow: {
+            glow: "0 24px 80px rgba(0, 167, 200, 0.22)",
+            soft: "0 18px 50px rgba(7, 26, 47, 0.12)"
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: Cairo, Tajawal, system-ui, sans-serif; }
+    .ltr-field { direction: ltr; text-align: left; }
+    .required::after { content: " *"; color: #C9A227; }
+    .hero-bg {
+      background:
+        radial-gradient(circle at top right, rgba(0, 167, 200, .25), transparent 30rem),
+        linear-gradient(135deg, #071A2F 0%, #0B2545 100%);
+    }
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-tawreed-ink font-arabic antialiased">
+
+  <header class="sticky top-0 z-50 border-b border-white/10 bg-tawreed-navy/95 backdrop-blur">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+      <a href="#top" class="flex items-center gap-3" aria-label="تَوْرِيد">
+        <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-xl font-black text-tawreed-navy shadow-glow">NADA</span>
+        <span>
+          <span class="block text-lg font-black text-white">ندى</span>
+          <span class="block text-xs font-semibold text-cyan-100">تطوير مناهج تدريب الشراء العام</span>
+        </span>
+      </a>
+
+      <nav class="hidden items-center gap-7 text-sm font-bold text-white/85 md:flex">
+        <a href="#create" class="hover:text-white">إنشاء المنهاج</a>
+        <a href="#review" class="hover:text-white">المراجعة</a>
+        <a href="#modules" class="hover:text-white">توليد وحدة</a>
+        <a href="#exams" class="hover:text-white">توليد اختبار</a>
+        <a href="#result" class="hover:text-white">النتائج</a>
+      </nav>
+
+      <a href="#create" class="rounded-full bg-tawreed-cyan px-5 py-2.5 text-sm font-extrabold text-white shadow-glow">
+        ابدأ
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero-bg text-white">
+      <div class="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+        <div>
+          <p class="inline-flex rounded-full border border-cyan-200/20 bg-white/10 px-4 py-2 text-sm font-bold text-cyan-100">
+            منصة تطوير مناهج تدريب الشراء العام
+          </p>
+          <h1 class="mt-6 max-w-4xl text-4xl font-black leading-tight sm:text-5xl">
+            إنشاء المنهاج، اعتماده، ثم توليد وحدة تدريبية
+          </h1>
+          <p class="mt-5 max-w-2xl text-lg leading-9 text-slate-200">
+            أدخل بيانات البرنامج، استلم مخطط الوحدات، اعتمد المنهاج، ثم ولّد الوحدة المطلوبة، الاختبار، ودليل المدرّب.
+          </p>
+        </div>
+
+        <div class="rounded-[2rem] bg-white p-6 text-tawreed-ink shadow-glow">
+          <div class="grid gap-4">
+            <div class="rounded-3xl bg-tawreed-sky p-5">
+              <p class="text-xs font-black text-slate-500">1</p>
+              <p class="mt-1 text-lg font-black text-tawreed-navy">إنشاء المنهاج</p>
+            </div>
+            <div class="rounded-3xl bg-slate-100 p-5">
+              <p class="text-xs font-black text-slate-500">2</p>
+              <p class="mt-1 text-lg font-black text-tawreed-navy">اعتماد المنهاج</p>
+            </div>
+            <div class="rounded-3xl bg-tawreed-navy p-5 text-white">
+              <p class="text-xs font-black text-cyan-100">3</p>
+              <p class="mt-1 text-lg font-black">توليد الوحدة</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="create" class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <form id="curriculumForm" class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+          <div class="mb-6">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Inject</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">بيانات المنهاج</h2>
+          </div>
+
+          <label class="block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">Program ID</span>
+            <input
+              id="programId"
+              name="ID"
+              required
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan ltr-field"
+              placeholder="p-26-101"
+            >
+          </label>
+
+          <label class="mt-4 block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">عنوان البرنامج</span>
+            <input
+              id="programTitle"
+              name="Title"
+              required
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              placeholder="أساسيات الشراء العام"
+            >
+          </label>
+
+          <label class="mt-4 block">
+            <span class="mb-2 block text-sm font-black text-tawreed-navy">الهدف</span>
+            <textarea
+              id="programGoal"
+              name="GOAL"
+              rows="4"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              placeholder="اكتب هدف البرنامج..."
+            ></textarea>
+          </label>
+
+          <label class="mt-4 block">
+            <span class="mb-2 block text-sm font-black text-tawreed-navy">الأهداف التعليمية</span>
+            <textarea
+              id="learningObjectives"
+              name="learning_objectives"
+              rows="4"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              placeholder="مثال:
+- فهم مبادئ قانون الشراء العام 244/2021
+- تطبيق إجراءات التخطيط والمنافسة والشفافية
+- تحليل حالات عملية من الإدارات العامة"
+            ></textarea>
+            <p class="mt-2 text-xs font-bold leading-6 text-slate-500">
+              اكتب كل هدف في سطر منفصل، أو افصل الأهداف بفواصل.
+            </p>
+          </label>
+
+          <label class="mt-4 block">
+            <span class="mb-2 block text-sm font-black text-tawreed-navy">الفئة المستهدفة</span>
+            <textarea
+              id="targetAudience"
+              name="target_audience"
+              rows="3"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              placeholder="مثال: موظفو الشراء العام، رؤساء الوحدات، أعضاء لجان التلزيم، موظفو البلديات والمؤسسات العامة..."
+            >موظفون عموميون لبنانيون</textarea>
+          </label>
+
+          <label class="mt-4 block">
+            <span class="mb-2 block text-sm font-black text-tawreed-navy">عدد الوحدات</span>
+            <input
+              id="moduleCount"
+              name="Number of Modules"
+              type="number"
+              min="1"
+              max="20"
+              value="5"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+            >
+          </label>
+
+          <button id="createButton" type="submit" class="mt-6 w-full rounded-2xl bg-tawreed-cyan px-6 py-4 font-black text-white shadow-glow">
+            إنشاء المنهاج
+          </button>
+
+          <div id="createStatus" class="mt-4"></div>
+        </form>
+
+        <div class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+          <div class="mb-6">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Receive</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">استجابة إنشاء المنهاج</h2>
+          </div>
+
+          <div id="curriculumResponseEmpty" class="rounded-2xl bg-slate-50 p-6 text-center font-bold text-slate-500 ring-1 ring-slate-200">
+            ستظهر الوحدات هنا بعد إنشاء المنهاج.
+          </div>
+
+          <div id="curriculumResponse" class="hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="review" class="mx-auto hidden max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+      <div class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Review</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">مراجعة المنهاج</h2>
+          </div>
+
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <button type="button" data-approval-button onclick="submitApproval('approved')" class="rounded-2xl bg-tawreed-cyan px-6 py-3 font-black text-white shadow-glow">اعتماد</button>
+            <button type="button" data-approval-button onclick="submitApproval('needs_revision')" class="rounded-2xl bg-amber-500 px-6 py-3 font-black text-white shadow-soft">يحتاج تعديل</button>
+            <button type="button" data-approval-button onclick="submitApproval('rejected')" class="rounded-2xl bg-red-600 px-6 py-3 font-black text-white shadow-soft">رفض</button>
+          </div>
+        </div>
+
+        <label class="mt-6 block">
+          <span class="mb-2 block text-sm font-black text-tawreed-navy">ملاحظات المراجعة</span>
+          <textarea
+            id="reviewNotes"
+            rows="3"
+            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+            placeholder="اختياري"
+          ></textarea>
+        </label>
+
+        <div id="approvalStatus" class="mt-4"></div>
+        <div id="modulesList" class="mt-6 grid gap-4"></div>
+      </div>
+    </section>
+
+    <section id="modules" class="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+      <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <form id="moduleForm" class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+          <div class="mb-6">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Inject</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">توليد وحدة</h2>
+          </div>
+
+          <label class="block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">Program ID</span>
+            <input
+              id="moduleProgramId"
+              name="program_id"
+              required
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan ltr-field"
+              placeholder="p-26-101"
+            >
+          </label>
+
+          <label class="mt-4 block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">رقم الوحدة</span>
+            <input
+              id="moduleNumber"
+              name="module_number"
+              required
+              type="number"
+              min="1"
+              value="1"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+            >
+          </label>
+
+          <button id="moduleButton" type="submit" class="mt-6 w-full rounded-2xl bg-tawreed-navy px-6 py-4 font-black text-white shadow-soft">
+            توليد الوحدة
+          </button>
+
+          <div id="moduleStatus" class="mt-4"></div>
+        </form>
+
+        <div id="result" class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+          <div class="mb-6">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Receive</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">استجابة توليد الوحدة</h2>
+          </div>
+
+          <div id="moduleResponseEmpty" class="rounded-2xl bg-slate-50 p-6 text-center font-bold text-slate-500 ring-1 ring-slate-200">
+            ستظهر نتيجة الوحدة هنا.
+          </div>
+
+          <div id="moduleResponse" class="hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="exams" class="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+      <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <form id="examForm" class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+          <div class="mb-6">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Inject</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">توليد اختبار</h2>
+          </div>
+
+          <label class="block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">Program ID</span>
+            <input
+              id="examProgramId"
+              name="program_id"
+              required
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan ltr-field"
+              placeholder="p-26-101"
+            >
+          </label>
+
+          <label class="mt-4 block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">نوع الاختبار</span>
+            <select
+              id="examType"
+              name="exam_type"
+              required
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+            >
+              <option value="semi">فصلي (Semi) — 20 سؤال + حالة دراسية واحدة</option>
+              <option value="final">نهائي (Final) — 40 سؤال + حالتان دراسيتان</option>
+            </select>
+          </label>
+
+          <label id="lastSessionField" class="mt-4 block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">آخر جلسة مشمولة</span>
+            <input
+              id="lastSession"
+              name="last_session"
+              type="number"
+              min="1"
+              value="1"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              placeholder="مثال: 6"
+            >
+            <p class="mt-2 text-xs font-bold leading-6 text-slate-500">
+              سيتم توليد الاختبار من الجلسة 1 حتى هذا الرقم. يُستخدم للاختبار الفصلي فقط.
+            </p>
+          </label>
+
+          <label class="mt-4 block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">عدد النسخ</span>
+            <input
+              id="numVersions"
+              name="num_versions"
+              required
+              type="number"
+              min="1"
+              max="10"
+              value="1"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+            >
+          </label>
+
+          <label class="mt-4 block">
+            <span class="required mb-2 block text-sm font-black text-tawreed-navy">مدة الاختبار (ساعات)</span>
+            <input
+              id="durationHours"
+              name="duration_hours"
+              required
+              type="number"
+              min="0.5"
+              step="0.5"
+              value="1.5"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+            >
+          </label>
+
+          <button id="examButton" type="submit" class="mt-6 w-full rounded-2xl bg-tawreed-navy px-6 py-4 font-black text-white shadow-soft">
+            توليد الاختبار
+          </button>
+
+          <div id="examStatus" class="mt-4"></div>
+        </form>
+
+        <div class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
+          <div class="mb-6">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Receive</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">استجابة توليد الاختبار</h2>
+          </div>
+
+          <div id="examResponseEmpty" class="rounded-2xl bg-slate-50 p-6 text-center font-bold text-slate-500 ring-1 ring-slate-200">
+            ستظهر نتيجة الاختبار ونسخه هنا.
+          </div>
+
+          <div id="examResponse" class="hidden"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let latestPreview = null;
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function parseLearningObjectives(value) {
+      return String(value || "")
+        .split(/\n|،|,/)
+        .map(item => item.trim().replace(/^[-•]\s*/, ""))
+        .filter(Boolean);
+    }
+
+    function getLearningObjectivesText() {
+      return document.getElementById("learningObjectives")?.value || "";
+    }
+
+    function getLearningObjectivesArray() {
+      return parseLearningObjectives(getLearningObjectivesText());
+    }
+
+    function getTargetAudience() {
+      return document.getElementById("targetAudience")?.value?.trim() || "موظفون عموميون لبنانيون";
+    }
+
+    function unwrapN8nResponse(data) {
+      if (Array.isArray(data)) {
+        return data.length === 1
+          ? unwrapN8nResponse(data[0])
+          : data.map(item => unwrapN8nResponse(item));
+      }
+
+      if (data && typeof data === "object" && "json" in data) {
+        return unwrapN8nResponse(data.json);
+      }
+
+      return data;
+    }
+
+    function showStatus(elementId, type, message) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      const styles = {
+        loading: "bg-cyan-50 text-tawreed-deep ring-1 ring-cyan-100",
+        success: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100",
+        error: "bg-red-50 text-red-800 ring-1 ring-red-100",
+        info: "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
+      };
+
+      element.innerHTML = `
+        <div class="rounded-2xl p-4 text-sm font-bold leading-7 ${styles[type] || styles.info}">
+          ${escapeHtml(message)}
+        </div>
+      `;
+    }
+
+    function clearStatus(elementId) {
+      const element = document.getElementById(elementId);
+      if (element) element.innerHTML = "";
+    }
+
+    function setButtonLoading(buttonId, isLoading, loadingText, defaultText) {
+      const button = document.getElementById(buttonId);
+      if (!button) return;
+
+      button.disabled = isLoading;
+      button.textContent = isLoading ? loadingText : defaultText;
+    }
+
+    function setApprovalButtonsLoading(isLoading) {
+      document.querySelectorAll("[data-approval-button]").forEach(button => {
+        button.disabled = isLoading;
+      });
+    }
+
+    async function handleResponse(response) {
+      const text = await response.text();
+
+      let data = null;
+
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = {
+            raw: text
+          };
+        }
+      } else {
+        data = {};
+      }
+
+      if (!response.ok) {
+        const message =
+          data?.message ||
+          data?.error ||
+          data?.raw ||
+          `Request failed with status ${response.status}`;
+
+        throw new Error(message);
+      }
+
+      return data;
+    }
+
+    async function postForm(url, payload) {
+      const body = new URLSearchParams();
+
+      Object.entries(payload).forEach(([key, value]) => {
+        body.append(key, value == null ? "" : String(value));
+      });
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+          },
+          body: body.toString()
+        });
+
+        return await handleResponse(response);
+      } catch (error) {
+        console.error("Form request failed:", error);
+
+        if (String(error?.message || "").includes("Failed to fetch")) {
+          throw new Error("تعذر الاتصال بالخادم. إذا كنت تستخدم n8n مباشرة، فهذا غالباً بسبب CORS. استخدم Vercel API proxy أو فعّل CORS في n8n.");
+        }
+
+        throw error;
+      }
+    }
+
+    async function postJson(url, payload) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        return await handleResponse(response);
+      } catch (error) {
+        console.error("JSON request failed:", error);
+
+        if (String(error?.message || "").includes("Failed to fetch")) {
+          throw new Error("تعذر الاتصال بالخادم. طلبات JSON تحتاج CORS/OPTIONS إذا كانت مرسلة مباشرة إلى n8n.");
+        }
+
+        throw error;
+      }
+    }
+
+    function normalizePreview(data) {
+      data = unwrapN8nResponse(data);
+
+      if (!data || typeof data !== "object") {
+        return {
+          program: {},
+          curriculum: [],
+          approval_payload: {}
+        };
+      }
+
+      const program = data.program || {
+        program_id: data.program_id || data.ID || "",
+        program_title: data.program_title || data.Title || ""
+      };
+
+      const curriculum =
+        Array.isArray(data.curriculum) ? data.curriculum :
+        Array.isArray(data.modules) ? data.modules :
+        [];
+
+      const baseApprovalPayload = data.approval_payload || {
+        ...program,
+        modules: curriculum
+      };
+
+      return {
+        program,
+        curriculum,
+        approval_payload: {
+          ...baseApprovalPayload,
+          target_audience: getTargetAudience(),
+          learning_objectives: getLearningObjectivesArray()
+        },
+        raw: data
+      };
+    }
+
+    function renderCurriculum(data) {
+      latestPreview = normalizePreview(data);
+
+      const program = latestPreview.program || {};
+      const curriculum = latestPreview.curriculum || [];
+
+      const responseEmpty = document.getElementById("curriculumResponseEmpty");
+      const response = document.getElementById("curriculumResponse");
+      const modulesList = document.getElementById("modulesList");
+      const review = document.getElementById("review");
+
+      responseEmpty.classList.add("hidden");
+      response.classList.remove("hidden");
+
+      const programId = program.program_id || program.ID || document.getElementById("programId").value;
+      const programTitle = program.program_title || program.Title || document.getElementById("programTitle").value;
+      const targetAudience = getTargetAudience();
+      const learningObjectivesText = getLearningObjectivesText();
+
+      document.getElementById("moduleProgramId").value = programId || "";
+
+      response.innerHTML = `
+        <div class="space-y-4">
+          <div class="rounded-2xl bg-tawreed-sky p-5 ring-1 ring-cyan-100">
+            <p class="text-xs font-black text-slate-500">Program ID</p>
+            <p class="mt-1 ltr-field text-lg font-black text-tawreed-navy">${escapeHtml(programId || "—")}</p>
+
+            <p class="mt-4 text-xs font-black text-slate-500">عنوان البرنامج</p>
+            <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(programTitle || "—")}</p>
+
+            <p class="mt-4 text-xs font-black text-slate-500">الفئة المستهدفة</p>
+            <p class="mt-1 text-base font-bold leading-7 text-tawreed-navy">${escapeHtml(targetAudience || "—")}</p>
+
+            <p class="mt-4 text-xs font-black text-slate-500">الأهداف التعليمية</p>
+            <p class="mt-1 whitespace-pre-wrap text-base font-bold leading-7 text-tawreed-navy">${escapeHtml(learningObjectivesText || "—")}</p>
+          </div>
+
+          <div class="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+            <p class="mb-3 text-sm font-black text-tawreed-navy">الوحدات المستلمة: ${curriculum.length}</p>
+            <pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-4 text-xs leading-6 text-slate-700 ring-1 ring-slate-200 ltr-field">${escapeHtml(JSON.stringify(latestPreview.raw || data, null, 2))}</pre>
+          </div>
+        </div>
+      `;
+
+      modulesList.innerHTML = curriculum.length
+        ? curriculum.map((module, index) => {
+            const title = module.title || module.module_title || module.name || `الوحدة ${index + 1}`;
+            const number = module.module_number || module.number || index + 1;
+            const description = module.outline_summary || module.description || module.summary || module.goal || "";
+
+            return `
+              <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                <p class="text-xs font-black text-slate-500">Module ${escapeHtml(number)}</p>
+                <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(title)}</p>
+                ${description ? `<p class="mt-2 text-sm font-semibold leading-7 text-slate-600">${escapeHtml(description)}</p>` : ""}
+              </div>
+            `;
+          }).join("")
+        : `
+          <div class="rounded-2xl bg-amber-50 p-4 font-bold text-amber-800 ring-1 ring-amber-100">
+            تم استلام الرد، لكن لم يتم العثور على قائمة وحدات باسم curriculum أو modules.
+          </div>
+        `;
+
+      review.classList.remove("hidden");
+      review.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function renderModule(data) {
+      const unwrapped = unwrapN8nResponse(data);
+
+      document.getElementById("moduleResponseEmpty").classList.add("hidden");
+      const response = document.getElementById("moduleResponse");
+      response.classList.remove("hidden");
+
+      let title = "نتيجة توليد الوحدة";
+      let bodyHtml = "";
+
+      if (unwrapped && typeof unwrapped === "object") {
+        title =
+          unwrapped.title ||
+          unwrapped.module_title ||
+          unwrapped.name ||
+          "نتيجة توليد الوحدة";
+
+        bodyHtml = `
+          <div class="rounded-2xl bg-tawreed-sky p-5 ring-1 ring-cyan-100">
+            <p class="text-xs font-black text-slate-500">Module Result</p>
+            <h3 class="mt-1 text-2xl font-black text-tawreed-navy">${escapeHtml(title)}</h3>
+          </div>
+
+          <div class="mt-4 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+            <pre class="max-h-[34rem] overflow-auto whitespace-pre-wrap rounded-xl bg-white p-4 text-xs leading-6 text-slate-700 ring-1 ring-slate-200 ltr-field">${escapeHtml(JSON.stringify(unwrapped, null, 2))}</pre>
+          </div>
+        `;
+      } else {
+        bodyHtml = `
+          <div class="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+            <pre class="whitespace-pre-wrap text-sm leading-7 text-slate-700">${escapeHtml(unwrapped)}</pre>
+          </div>
+        `;
+      }
+
+      response.innerHTML = bodyHtml;
+      document.getElementById("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function renderExam(data) {
+      const unwrapped = unwrapN8nResponse(data);
+
+      document.getElementById("examResponseEmpty").classList.add("hidden");
+      const response = document.getElementById("examResponse");
+      response.classList.remove("hidden");
+
+      const examTypeLabel = {
+        semi: "فصلي (Semi)",
+        final: "نهائي (Final)"
+      }[unwrapped?.exam_type] || unwrapped?.exam_type || "—";
+
+      const versions = Array.isArray(unwrapped?.versions) ? unwrapped.versions : [];
+
+      const versionsHtml = versions.length
+        ? versions.map((version, index) => {
+            const examLink = version.exam_link || version.exam_file_link || version.exam_url || "";
+            const keyLink = version.answer_key_link || version.answer_key_url || "";
+
+            return `
+              <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                <p class="text-xs font-black text-slate-500">نسخة ${index + 1}</p>
+                <div class="mt-2 flex flex-wrap gap-3">
+                  ${examLink ? `<a href="${escapeHtml(examLink)}" target="_blank" rel="noopener" class="rounded-xl bg-tawreed-cyan px-4 py-2 text-sm font-black text-white">ورقة الاختبار</a>` : ""}
+                  ${keyLink ? `<a href="${escapeHtml(keyLink)}" target="_blank" rel="noopener" class="rounded-xl bg-tawreed-navy px-4 py-2 text-sm font-black text-white">نموذج الإجابة</a>` : ""}
+                </div>
+              </div>
+            `;
+          }).join("")
+        : `
+          <div class="rounded-2xl bg-amber-50 p-4 font-bold text-amber-800 ring-1 ring-amber-100">
+            تم استلام الرد، راجع التفاصيل الكاملة أدناه.
+          </div>
+        `;
+
+      response.innerHTML = `
+        <div class="space-y-4">
+          <div class="rounded-2xl bg-tawreed-sky p-5 ring-1 ring-cyan-100">
+            <p class="text-xs font-black text-slate-500">نوع الاختبار</p>
+            <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(examTypeLabel)}</p>
+
+            <p class="mt-4 text-xs font-black text-slate-500">عدد النسخ</p>
+            <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(unwrapped?.num_versions ?? versions.length ?? "—")}</p>
+          </div>
+
+          <div class="grid gap-3">${versionsHtml}</div>
+
+          <div class="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+            <p class="mb-3 text-sm font-black text-tawreed-navy">الاستجابة الكاملة</p>
+            <pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-4 text-xs leading-6 text-slate-700 ring-1 ring-slate-200 ltr-field">${escapeHtml(JSON.stringify(unwrapped, null, 2))}</pre>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("exams").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function updateLastSessionVisibility() {
+      const examType = document.getElementById("examType").value;
+      const lastSessionField = document.getElementById("lastSessionField");
+      const lastSessionInput = document.getElementById("lastSession");
+
+      const isSemi = examType === "semi";
+
+      lastSessionField.classList.toggle("hidden", !isSemi);
+      lastSessionInput.required = isSemi;
+      lastSessionInput.disabled = !isSemi;
+    }
+
+    document.getElementById("curriculumForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      clearStatus("approvalStatus");
+      showStatus("createStatus", "loading", "جاري إرسال بيانات المنهاج...");
+      setButtonLoading("createButton", true, "جاري الإرسال...", "إنشاء المنهاج");
+
+      try {
+        const payload = Object.fromEntries(new FormData(event.target));
+
+        payload.target_audience = getTargetAudience();
+        payload.learning_objectives = JSON.stringify(getLearningObjectivesArray());
+
+        const data = await postForm(ENDPOINTS.curriculumIntake, payload);
+
+        renderCurriculum(data);
+        showStatus("createStatus", "success", "تم استلام مخطط المنهاج بنجاح.");
+      } catch (error) {
+        showStatus("createStatus", "error", error.message || "حدث خطأ أثناء إنشاء المنهاج.");
+      } finally {
+        setButtonLoading("createButton", false, "جاري الإرسال...", "إنشاء المنهاج");
+      }
+    });
+
+    async function submitApproval(status) {
+      if (!latestPreview) {
+        showStatus("approvalStatus", "error", "يجب إنشاء المنهاج أولاً قبل الاعتماد.");
+        return;
+      }
+
+      showStatus("approvalStatus", "loading", "جاري إرسال قرار المراجعة...");
+      setApprovalButtonsLoading(true);
+
+      try {
+        const notes = document.getElementById("reviewNotes").value || "";
+
+        const payload = {
+          ...latestPreview.approval_payload,
+          target_audience: getTargetAudience(),
+          learning_objectives: getLearningObjectivesArray(),
+          approval_status: status,
+          review_notes: notes,
+          reviewed_at: new Date().toISOString()
+        };
+
+        await postJson(ENDPOINTS.approveCurriculum, payload);
+
+        const label = {
+          approved: "تم اعتماد المنهاج.",
+          needs_revision: "تم إرسال القرار: يحتاج تعديل.",
+          rejected: "تم رفض المنهاج."
+        }[status] || "تم إرسال قرار المراجعة.";
+
+        showStatus("approvalStatus", "success", label);
+      } catch (error) {
+        showStatus("approvalStatus", "error", error.message || "حدث خطأ أثناء إرسال قرار المراجعة.");
+      } finally {
+        setApprovalButtonsLoading(false);
+      }
+    }
+
+    document.getElementById("moduleForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      showStatus("moduleStatus", "loading", "جاري توليد الوحدة...");
+      setButtonLoading("moduleButton", true, "جاري التوليد...", "توليد الوحدة");
+
+      try {
+        const payload = Object.fromEntries(new FormData(event.target));
+        const data = await postForm(ENDPOINTS.moduleGenerator, payload);
+
+        renderModule(data);
+        showStatus("moduleStatus", "success", "تم توليد الوحدة بنجاح.");
+      } catch (error) {
+        showStatus("moduleStatus", "error", error.message || "حدث خطأ أثناء توليد الوحدة.");
+      } finally {
+        setButtonLoading("moduleButton", false, "جاري التوليد...", "توليد الوحدة");
+      }
+    });
+
+    document.getElementById("examType").addEventListener("change", updateLastSessionVisibility);
+    updateLastSessionVisibility();
+
+    document.getElementById("examForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      showStatus("examStatus", "loading", "جاري توليد الاختبار...");
+      setButtonLoading("examButton", true, "جاري التوليد...", "توليد الاختبار");
+
+      try {
+        const payload = Object.fromEntries(new FormData(event.target));
+
+        if (payload.exam_type !== "semi") {
+          delete payload.last_session;
+        }
+
+        const data = await postForm(ENDPOINTS.examGenerator, payload);
+
+        renderExam(data);
+        showStatus("examStatus", "success", "تم توليد الاختبار بنجاح.");
+      } catch (error) {
+        showStatus("examStatus", "error", error.message || "حدث خطأ أثناء توليد الاختبار.");
+      } finally {
+        setButtonLoading("examButton", false, "جاري التوليد...", "توليد الاختبار");
+      }
+    });
+  </script>
+</body>
+</html>
