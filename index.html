@@ -204,13 +204,13 @@
               id="learningObjectives"
               name="learning_objectives"
               rows="4"
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan disabled:opacity-50"
               placeholder="مثال:
 - فهم مبادئ قانون الشراء العام 244/2021
 - تطبيق إجراءات التخطيط والمنافسة والشفافية
 - تحليل حالات عملية من الإدارات العامة"
             ></textarea>
-            <p class="mt-2 text-xs font-bold leading-6 text-slate-500">
+            <p id="learningObjectivesHint" class="mt-2 text-xs font-bold leading-6 text-slate-500">
               اكتب كل هدف في سطر منفصل، أو افصل الأهداف بفواصل.
             </p>
           </label>
@@ -235,8 +235,11 @@
               min="1"
               max="20"
               value="5"
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-tawreed-cyan read-only:opacity-60"
             >
+            <p id="moduleCountHint" class="mt-2 hidden text-xs font-bold leading-6 text-slate-500">
+              يُحدَّد العدد تلقائياً من خطة الجلسات المحددة.
+            </p>
           </label>
 
           <button id="createButton" type="submit" class="mt-6 w-full rounded-2xl bg-tawreed-cyan px-6 py-4 font-black text-white shadow-glow">
@@ -246,17 +249,53 @@
           <div id="createStatus" class="mt-4"></div>
         </form>
 
+        <!-- Strict session plan option (replaces the old "Receive / استجابة إنشاء المنهاج" panel) -->
         <div class="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-slate-200">
           <div class="mb-6">
-            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Receive</p>
-            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">استجابة إنشاء المنهاج</h2>
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-tawreed-cyan">Strict Plan</p>
+            <h2 class="mt-2 text-3xl font-black text-tawreed-navy">خطة الجلسات المحددة</h2>
+            <p class="mt-2 text-sm font-bold leading-7 text-slate-500">
+              عند التفعيل، يلتزم المنهاج حرفياً بعناوين الجلسات وأهدافها كما تكتبها هنا، ويقتصر عمل الذكاء الاصطناعي على الملخصات وأدوات التدريب.
+            </p>
           </div>
 
-          <div id="curriculumResponseEmpty" class="rounded-2xl bg-slate-50 p-6 text-center font-bold text-slate-500 ring-1 ring-slate-200">
-            ستظهر الوحدات هنا بعد إنشاء المنهاج.
+          <label class="flex cursor-pointer items-center gap-3 rounded-2xl bg-tawreed-sky p-4 ring-1 ring-cyan-100">
+            <input id="strictPlanToggle" type="checkbox" class="h-5 w-5 accent-cyan-600">
+            <span class="text-base font-black text-tawreed-navy">اعتماد خطة جلسات محددة (عناوين وأهداف ثابتة)</span>
+          </label>
+
+          <div id="strictPlanOff" class="mt-4 rounded-2xl bg-slate-50 p-6 text-center font-bold text-slate-500 ring-1 ring-slate-200">
+            الخيار غير مفعّل. سيصمّم الذكاء الاصطناعي الوحدات من هدف البرنامج وعددها.
           </div>
 
-          <div id="curriculumResponse" class="hidden"></div>
+          <div id="strictPlanBox" class="mt-4 hidden">
+            <p class="mb-2 text-xs font-bold leading-6 text-slate-500">
+              الصيغة: رقم الجلسة وعنوانها في سطر، ثم الأهداف بحروف (أ، ب، ج...) كل هدف في سطر.
+            </p>
+
+            <textarea
+              id="sessionPlan"
+              rows="14"
+              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 outline-none focus:ring-2 focus:ring-tawreed-cyan"
+              placeholder="1- عنوان الجلسة الأولى:
+أ- الهدف الأول
+ب- الهدف الثاني
+2- عنوان الجلسة الثانية:
+أ- الهدف الأول
+ب- الهدف الثاني"></textarea>
+
+            <div class="mt-3 flex flex-wrap items-center gap-3">
+              <label class="cursor-pointer rounded-xl bg-tawreed-navy px-4 py-2 text-sm font-black text-white">
+                رفع ملف نصي (.txt)
+                <input id="sessionPlanFile" type="file" accept=".txt,text/plain" class="hidden">
+              </label>
+              <button id="sessionPlanClear" type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-black text-slate-600 ring-1 ring-slate-200">
+                مسح النص
+              </button>
+            </div>
+
+            <div id="sessionPlanPreview" class="mt-4"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -287,6 +326,10 @@
         </label>
 
         <div id="approvalStatus" class="mt-4"></div>
+
+        <!-- Program summary (moved here from the removed response panel) -->
+        <div id="curriculumSummary" class="mt-6"></div>
+
         <div id="modulesList" class="mt-6 grid gap-4"></div>
       </div>
     </section>
@@ -475,6 +518,111 @@
       return document.getElementById("targetAudience")?.value?.trim() || "موظفون عموميون لبنانيون";
     }
 
+    /* ------------------------------------------------------------------
+       Strict session plan
+       Same parsing rules as the n8n "Normalize Curriculum Request" node.
+       Used here for preview and validation only; n8n parses the raw text again.
+    ------------------------------------------------------------------ */
+    function parseSessionPlan(text) {
+      const lines = String(text || "")
+        .replace(/[\u200c\u200e\u200f]/g, "")
+        .split(/\r?\n/);
+
+      const sessions = [];
+      let current = null;
+
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\t/g, " ").trim();
+        if (!line) continue;
+
+        // Session title: "1- title:"
+        const t = line.match(/^(\d{1,2})\s*[-–.]\s*(.+?)\s*:?\s*$/);
+        if (t) {
+          current = { module_number: Number(t[1]), title: t[2].trim(), objectives: [] };
+          sessions.push(current);
+          continue;
+        }
+
+        // Objective: "أ- text"
+        const o = line.match(/^[\u0621-\u064A]\s*[-–]\s*(.+)$/);
+        if (o && current) {
+          current.objectives.push(o[1].trim());
+          continue;
+        }
+
+        // Wrapped continuation of the previous objective
+        if (current && current.objectives.length) {
+          current.objectives[current.objectives.length - 1] += " " + line;
+        }
+      }
+
+      return sessions;
+    }
+
+    function isStrictPlanOn() {
+      return document.getElementById("strictPlanToggle")?.checked === true;
+    }
+
+    function updateStrictPlanUI() {
+      const on = isStrictPlanOn();
+
+      document.getElementById("strictPlanBox").classList.toggle("hidden", !on);
+      document.getElementById("strictPlanOff").classList.toggle("hidden", on);
+
+      const countInput = document.getElementById("moduleCount");
+      const objectivesField = document.getElementById("learningObjectives");
+
+      if (on) {
+        if (countInput.dataset.previous === undefined) {
+          countInput.dataset.previous = countInput.value;
+        }
+        refreshSessionPlanPreview();
+      } else if (countInput.dataset.previous !== undefined) {
+        countInput.value = countInput.dataset.previous;
+        delete countInput.dataset.previous;
+      }
+
+      countInput.readOnly = on;
+      objectivesField.disabled = on;
+      document.getElementById("moduleCountHint").classList.toggle("hidden", !on);
+      document.getElementById("learningObjectivesHint").textContent = on
+        ? "غير مستخدمة عند تفعيل خطة الجلسات المحددة (الأهداف تُؤخذ من الخطة)."
+        : "اكتب كل هدف في سطر منفصل، أو افصل الأهداف بفواصل.";
+    }
+
+    function refreshSessionPlanPreview() {
+      const plan = parseSessionPlan(document.getElementById("sessionPlan").value);
+      const box = document.getElementById("sessionPlanPreview");
+
+      if (!plan.length) {
+        box.innerHTML = `
+          <div class="rounded-2xl bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800 ring-1 ring-amber-100">
+            لم يتم التعرف على أي جلسة بعد. ابدأ كل جلسة برقم وشرطة، مثل: 1- عنوان الجلسة
+          </div>`;
+        return;
+      }
+
+      if (isStrictPlanOn()) {
+        document.getElementById("moduleCount").value = plan.length;
+      }
+
+      const totalObjectives = plan.reduce((sum, s) => sum + s.objectives.length, 0);
+      const emptySessions = plan.filter(s => s.objectives.length === 0).length;
+
+      box.innerHTML = `
+        <div class="rounded-2xl bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800 ring-1 ring-emerald-100">
+          تم التعرف على ${plan.length} جلسة و${totalObjectives} هدفاً.
+          ${emptySessions ? `<span class="block text-amber-700">تنبيه: ${emptySessions} جلسة بلا أهداف.</span>` : ""}
+          <ul class="mt-2 list-disc space-y-1 pr-5">
+            ${plan.map(s => `
+              <li>
+                ${escapeHtml(s.module_number)}. ${escapeHtml(s.title)}
+                <span class="text-xs text-emerald-700">(${s.objectives.length} أهداف)</span>
+              </li>`).join("")}
+          </ul>
+        </div>`;
+    }
+
     function unwrapN8nResponse(data) {
       if (Array.isArray(data)) {
         return data.length === 1
@@ -650,42 +798,43 @@
       const program = latestPreview.program || {};
       const curriculum = latestPreview.curriculum || [];
 
-      const responseEmpty = document.getElementById("curriculumResponseEmpty");
-      const response = document.getElementById("curriculumResponse");
+      const summary = document.getElementById("curriculumSummary");
       const modulesList = document.getElementById("modulesList");
       const review = document.getElementById("review");
-
-      responseEmpty.classList.add("hidden");
-      response.classList.remove("hidden");
 
       const programId = program.program_id || program.ID || document.getElementById("programId").value;
       const programTitle = program.program_title || program.Title || document.getElementById("programTitle").value;
       const targetAudience = getTargetAudience();
+      const strict = isStrictPlanOn();
       const learningObjectivesText = getLearningObjectivesText();
 
       document.getElementById("moduleProgramId").value = programId || "";
 
-      response.innerHTML = `
-        <div class="space-y-4">
-          <div class="rounded-2xl bg-tawreed-sky p-5 ring-1 ring-cyan-100">
-            <p class="text-xs font-black text-slate-500">Program ID</p>
-            <p class="mt-1 ltr-field text-lg font-black text-tawreed-navy">${escapeHtml(programId || "—")}</p>
+      summary.innerHTML = `
+        <div class="rounded-2xl bg-tawreed-sky p-5 ring-1 ring-cyan-100">
+          <p class="text-xs font-black text-slate-500">Program ID</p>
+          <p class="mt-1 ltr-field text-lg font-black text-tawreed-navy">${escapeHtml(programId || "—")}</p>
 
-            <p class="mt-4 text-xs font-black text-slate-500">عنوان البرنامج</p>
-            <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(programTitle || "—")}</p>
+          <p class="mt-4 text-xs font-black text-slate-500">عنوان البرنامج</p>
+          <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(programTitle || "—")}</p>
 
-            <p class="mt-4 text-xs font-black text-slate-500">الفئة المستهدفة</p>
-            <p class="mt-1 text-base font-bold leading-7 text-tawreed-navy">${escapeHtml(targetAudience || "—")}</p>
+          <p class="mt-4 text-xs font-black text-slate-500">الفئة المستهدفة</p>
+          <p class="mt-1 text-base font-bold leading-7 text-tawreed-navy">${escapeHtml(targetAudience || "—")}</p>
 
-            <p class="mt-4 text-xs font-black text-slate-500">الأهداف التعليمية</p>
-            <p class="mt-1 whitespace-pre-wrap text-base font-bold leading-7 text-tawreed-navy">${escapeHtml(learningObjectivesText || "—")}</p>
-          </div>
+          ${strict
+            ? `<p class="mt-4 text-xs font-black text-slate-500">وضع التخطيط</p>
+               <p class="mt-1 text-base font-bold leading-7 text-tawreed-navy">خطة جلسات محددة — العناوين والأهداف ثابتة</p>`
+            : `<p class="mt-4 text-xs font-black text-slate-500">الأهداف التعليمية</p>
+               <p class="mt-1 whitespace-pre-wrap text-base font-bold leading-7 text-tawreed-navy">${escapeHtml(learningObjectivesText || "—")}</p>`}
 
-          <div class="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-            <p class="mb-3 text-sm font-black text-tawreed-navy">الوحدات المستلمة: ${curriculum.length}</p>
-            <pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-4 text-xs leading-6 text-slate-700 ring-1 ring-slate-200 ltr-field">${escapeHtml(JSON.stringify(latestPreview.raw || data, null, 2))}</pre>
-          </div>
+          <p class="mt-4 text-xs font-black text-slate-500">الوحدات المستلمة</p>
+          <p class="mt-1 text-lg font-black text-tawreed-navy">${curriculum.length}</p>
         </div>
+
+        <details class="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <summary class="cursor-pointer text-sm font-black text-tawreed-navy">عرض الاستجابة الكاملة (JSON)</summary>
+          <pre class="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-4 text-xs leading-6 text-slate-700 ring-1 ring-slate-200 ltr-field">${escapeHtml(JSON.stringify(latestPreview.raw || data, null, 2))}</pre>
+        </details>
       `;
 
       modulesList.innerHTML = curriculum.length
@@ -693,12 +842,22 @@
             const title = module.title || module.module_title || module.name || `الوحدة ${index + 1}`;
             const number = module.module_number || module.number || index + 1;
             const description = module.outline_summary || module.description || module.summary || module.goal || "";
+            const objectives = Array.isArray(module.module_objectives) ? module.module_objectives : [];
+            const tools = Array.isArray(module.training_tools) ? module.training_tools : [];
 
             return `
               <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                 <p class="text-xs font-black text-slate-500">Module ${escapeHtml(number)}</p>
                 <p class="mt-1 text-lg font-black text-tawreed-navy">${escapeHtml(title)}</p>
                 ${description ? `<p class="mt-2 text-sm font-semibold leading-7 text-slate-600">${escapeHtml(description)}</p>` : ""}
+                ${objectives.length ? `
+                  <ul class="mt-2 list-disc space-y-1 pr-5 text-sm font-semibold leading-7 text-slate-600">
+                    ${objectives.map(o => `<li>${escapeHtml(o)}</li>`).join("")}
+                  </ul>` : ""}
+                ${tools.length ? `
+                  <p class="mt-3 text-xs font-black text-tawreed-cyan">
+                    ${tools.map(t => escapeHtml(t.tool_name || "")).filter(Boolean).join(" • ")}
+                  </p>` : ""}
               </div>
             `;
           }).join("")
@@ -820,8 +979,38 @@
       lastSessionInput.disabled = !isSemi;
     }
 
+    /* ---------------- Strict plan listeners ---------------- */
+    document.getElementById("strictPlanToggle").addEventListener("change", updateStrictPlanUI);
+    document.getElementById("sessionPlan").addEventListener("input", refreshSessionPlanPreview);
+
+    document.getElementById("sessionPlanFile").addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      document.getElementById("sessionPlan").value = await file.text();
+      refreshSessionPlanPreview();
+      event.target.value = "";
+    });
+
+    document.getElementById("sessionPlanClear").addEventListener("click", () => {
+      document.getElementById("sessionPlan").value = "";
+      refreshSessionPlanPreview();
+    });
+
+    updateStrictPlanUI();
+
+    /* ---------------- Curriculum form ---------------- */
     document.getElementById("curriculumForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+
+      const strict = isStrictPlanOn();
+      const planText = document.getElementById("sessionPlan").value;
+      const plan = strict ? parseSessionPlan(planText) : [];
+
+      if (strict && !plan.length) {
+        showStatus("createStatus", "error", "فعّلت خطة الجلسات المحددة، لكن النص لا يحتوي على جلسات مقروءة. ابدأ كل جلسة برقم وشرطة مثل: 1- العنوان.");
+        return;
+      }
 
       clearStatus("approvalStatus");
       showStatus("createStatus", "loading", "جاري إرسال بيانات المنهاج...");
@@ -831,7 +1020,14 @@
         const payload = Object.fromEntries(new FormData(event.target));
 
         payload.target_audience = getTargetAudience();
-        payload.learning_objectives = JSON.stringify(getLearningObjectivesArray());
+        payload.learning_objectives = JSON.stringify(strict ? [] : getLearningObjectivesArray());
+
+        if (strict) {
+          payload.session_plan = planText;                 // raw text, parsed again by n8n
+          payload["Number of Modules"] = plan.length;
+        } else {
+          delete payload.session_plan;
+        }
 
         const data = await postForm(ENDPOINTS.curriculumIntake, payload);
 
@@ -859,7 +1055,7 @@
         const payload = {
           ...latestPreview.approval_payload,
           target_audience: getTargetAudience(),
-          learning_objectives: getLearningObjectivesArray(),
+          learning_objectives: isStrictPlanOn() ? [] : getLearningObjectivesArray(),
           approval_status: status,
           review_notes: notes,
           reviewed_at: new Date().toISOString()
